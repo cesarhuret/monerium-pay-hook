@@ -11,6 +11,18 @@ import {
   MenuGroup,
   MenuOptionGroup,
   MenuDivider,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper,
   Box,
   Button,
   Flex,
@@ -21,13 +33,19 @@ import {
   Spinner,
   Text,
   VStack,
+  Stack,
+  useDisclosure,
 } from "@chakra-ui/react";
+import { encode } from "base-64";
 import { useRouter } from "next/router";
 import { ChevronDownIcon } from "@chakra-ui/icons";
+import QRCode from "react-qr-code";
 
 const client = new MoneriumClient("sandbox");
 
 const inter = Inter({ subsets: ["latin"] });
+
+const CURRENCIES = ["EUR", "GBP", "USD", "ISK"];
 
 export default function Home() {
   const [authContext, setAuthCTX] = useState({});
@@ -37,11 +55,17 @@ export default function Home() {
   const [refreshToken, setRefreshToken] = useState("");
   const [transactions, setTransactions] = useState([]);
 
+  const [currency, setCurrency] = useState("EUR");
+  const [recipient, setRecipient] = useState("");
+  const [amount, setAmount] = useState(0);
+
   const router = useRouter();
 
   const searchParams = useSearchParams();
 
   const codeParam = searchParams.get("code");
+
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   const getAccessToken = async (code) => {
     // After user authentication, Monerium redirects back to your specified URI with a code.
@@ -183,47 +207,115 @@ export default function Home() {
     }
   }, []);
 
-  const Accounts = ({ accounts }) => (
-    <VStack
-      w={"full"}
-      spacing={5}
-      justifyContent={"center"}
-      alignItems={"center"}
-      p={4}
-    >
-      <Heading>Receive</Heading>
-      {Object.keys(accounts).map((account, index) => {
-        console.log(accounts);
-        return (
-          <HStack justify={"space-between"} key={account} p={6}>
-            {/* <Heading fontFamily={inter} pb={6} size={"md"}>
-              {account.substring(0, 6)}...{account.substring(38, 42)}
-            </Heading> */}
-            <Menu>
-              <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
-                Recipient
+  const Receive = ({ accounts }) => (
+    <Stack w={{ base: "95%", md: "400px" }}>
+      <Flex
+        alignItems={"center"}
+        justifyContent={"space-between"}
+        flexDirection={"column"}
+        minH={"lg"}
+        gap={10}
+        my={10}
+        p={10}
+        rounded={"2xl"}
+        boxShadow={"2xl"}
+        bgColor={"#fffefe"}
+      >
+        <Heading>Receive</Heading>
+        <VStack
+          w={"90%"}
+          alignItems={"flex-start"}
+          justifyContent={"start"}
+          spacing={5}
+        >
+          <Menu>
+            <HStack w={"full"}>
+              <Text>To: </Text>
+              <MenuButton
+                w={"full"}
+                as={Button}
+                rightIcon={<ChevronDownIcon />}
+              >
+                {recipient &&
+                  recipient.substring(0, 6) +
+                    "..." +
+                    recipient.substring(38, 42)}
               </MenuButton>
-              <MenuList>
-                {Object.values(accounts[account]).map((data, index) => (
-                  <MenuItem>{data.currency}</MenuItem>
-                ))}
-              </MenuList>
-            </Menu>
-            <Menu>
-              <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
-                Currency
+            </HStack>
+            <MenuList>
+              {Object.keys(accounts).map((data, index) => (
+                <MenuItem
+                  value={data}
+                  onClick={(e) => setRecipient(e.target.value)}
+                  key={index}
+                >
+                  {data}
+                </MenuItem>
+              ))}
+            </MenuList>
+          </Menu>
+          <Menu>
+            <HStack w={"full"}>
+              <Text>Receive: </Text>
+              <MenuButton
+                w={"full"}
+                as={Button}
+                rightIcon={<ChevronDownIcon />}
+              >
+                {currency}
               </MenuButton>
-              <MenuList>
-                {Object.values(accounts[account]).map((data, index) => (
-                  <MenuItem>{data.currency}</MenuItem>
-                ))}
-              </MenuList>
-            </Menu>
-          </HStack>
-        );
-      })}
-    </VStack>
+            </HStack>
+            <MenuList>
+              {CURRENCIES.map((data, index) => (
+                <MenuItem
+                  key={index}
+                  value={data}
+                  onClick={(e) => setCurrency(e.target.value)}
+                >
+                  {data}
+                </MenuItem>
+              ))}
+            </MenuList>
+          </Menu>
+          <NumberInput
+            w={"full"}
+            onChange={(value) => setAmount(value)}
+            min={0}
+            value={parseInt(amount)}
+          >
+            <NumberInputField />
+            <NumberInputStepper>
+              <NumberIncrementStepper />
+              <NumberDecrementStepper />
+            </NumberInputStepper>
+          </NumberInput>
+        </VStack>
+        <Button
+          w={"full"}
+          colorScheme="green"
+          isDisabled={!recipient || !amount}
+          onClick={sendMessage}
+        >
+          Receive {amount} {currency}
+        </Button>
+      </Flex>
+    </Stack>
   );
+
+  const getPaymentURL = () => {
+    const object = {
+      receiver: recipient,
+      amount: amount,
+      currency: currency,
+      date: new Date().toISOString(),
+      merchant: authContext?.name,
+    };
+
+    const encoded = encode(JSON.stringify(object));
+    return encoded;
+  };
+
+  const waitForPayment = async () => {};
 
   const Transactions = ({ transactions }) => (
     <VStack justifyContent={"start"} alignItems={"start"}>
@@ -236,6 +328,14 @@ export default function Home() {
     </VStack>
   );
 
+  const sendMessage = () => {
+    const ws = new WebSocket("wss://chat.kesarx.repl.co/" + profileId);
+
+    ws.onopen = () => {
+      ws.send("http://localhost:3000/pay/" + getPaymentURL());
+    };
+  };
+
   return (
     <Flex
       w={"full"}
@@ -244,6 +344,30 @@ export default function Home() {
       alignItems={"center"}
       overflowY={"scroll"}
     >
+      <Modal isOpen={isOpen} onClose={onClose} isCentered>
+        <ModalOverlay />
+        <ModalContent h={"lg"}>
+          <ModalBody p={10}>
+            <VStack
+              w={"full"}
+              h={"full"}
+              alignItems={"center"}
+              justifyContent={"space-around"}
+            >
+              {/* <Heading>Receive</Heading> */}
+              <QRCode
+                size={180}
+                value={"http://localhost:3000/pay/" + getPaymentURL()}
+              />
+              {/* <VStack spacing={3}>
+                <Text>Waiting For Payment</Text>
+                <Spinner />
+              </VStack> */}
+            </VStack>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+
       {codeParam ? (
         <Spinner />
       ) : accessToken ? (
@@ -264,7 +388,7 @@ export default function Home() {
             spacing={10}
             py={5}
           >
-            <Accounts accounts={accounts} />
+            <Receive accounts={accounts} />
             <Transactions transactions={transactions} />
           </VStack>
         </VStack>
