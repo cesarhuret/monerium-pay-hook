@@ -15,11 +15,31 @@ import {
   NumberInputStepper,
   NumberIncrementStepper,
   NumberDecrementStepper,
+  Input,
+  IconButton,
 } from "@chakra-ui/react";
-import { ChevronDownIcon } from "@chakra-ui/icons";
+import { ChevronDownIcon, ExternalLinkIcon } from "@chakra-ui/icons";
 
-export default function Receive() {
-  <Stack w={{ base: "95%", md: "400px" }}>
+const CURRENCIES = ["EUR", "GBP", "USD", "ISK"];
+
+export default function Receive({
+  recipient,
+  setCurrency,
+  setAmount,
+  currency,
+  amount,
+  sendMessage,
+  setIban,
+  iban,
+  checkoutUrl,
+}) {
+  const ibanWrapper = (data) => {
+    setIban(data);
+    localStorage.setItem("iban", data);
+  };
+
+  return (
+    <Stack w={{ base: "95%", md: "400px" }}>
       <Flex
         alignItems={"center"}
         justifyContent={"space-between"}
@@ -40,10 +60,11 @@ export default function Receive() {
           spacing={5}
         >
           <HStack w={"full"}>
-            <Text>To: </Text>
-            <Text>
-              {recipient.substring(0, 6) + "..." + recipient.substring(38, 42)}{" "}
-            </Text>
+            <Input
+              placeholder={"IBAN"}
+              value={iban}
+              onChange={(e) => ibanWrapper(e.target.value)}
+            />
           </HStack>
 
           <Menu>
@@ -82,14 +103,18 @@ export default function Receive() {
             </NumberInputStepper>
           </NumberInput>
         </VStack>
-        <Button
-          w={"full"}
-          colorScheme="green"
-          isDisabled={!recipient || !amount}
-          onClick={sendMessage}
-        >
-          Receive {amount} {currency}
-        </Button>
+        <HStack w={"full"}>
+          <Button
+            w={"full"}
+            colorScheme="green"
+            isDisabled={!recipient || !amount}
+            onClick={sendMessage}
+          >
+            Receive {amount} {currency}
+          </Button>
+          {/* <IconButton isDisabled={!checkoutUrl} icon={<ExternalLinkIcon />} /> */}
+        </HStack>
       </Flex>
     </Stack>
+  );
 }

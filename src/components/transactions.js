@@ -1,13 +1,6 @@
-import {
-  VStack,
-  Heading,
-  Box,
-  HStack,
-  Text,
-  Spacer,
-} from "@chakra-ui/react";
+import { VStack, Heading, Box, HStack, Text, Spacer } from "@chakra-ui/react";
 
-export default function Transactions({ transactions }) {
+export default function Transactions({ transactions, iban }) {
   return (
     <VStack justifyContent={"start"} alignItems={"start"}>
       <Heading>Transaction History</Heading>
@@ -27,8 +20,10 @@ export default function Transactions({ transactions }) {
         >
           <HStack>
             <Text>
-              {tx.kind == "issue" ? "+" : "-"} {tx.amount}{" "}
-              {tx.currency.toUpperCase()}
+              {tx.kind == "issue" || tx?.counterpart?.identifier?.iban == iban
+                ? "+"
+                : "-"}{" "}
+              {tx.amount} {tx.currency.toUpperCase()}
             </Text>
             <Spacer flex={1} />
             <Text fontSize={"xs"} fontWeight={"bold"}>

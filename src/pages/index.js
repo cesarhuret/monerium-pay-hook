@@ -40,10 +40,11 @@ import { decode, encode } from "base-64";
 import { useRouter } from "next/router";
 import { ChevronDownIcon } from "@chakra-ui/icons";
 import QRCode from "react-qr-code";
-import { createPublicClient, http } from "viem";
+import { createPublicClient, formatUnits, http, parseUnits } from "viem";
 import { goerli } from "viem/chains";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { Transactions, Receive } from "@/components";
+import { getAccessToken, getAccessTokenExtended } from "@/utils/getAccessToken";
 
 const client = new MoneriumClient("sandbox");
 
@@ -54,8 +55,6 @@ const viemClient = createPublicClient({
 
 const inter = Inter({ subsets: ["latin"] });
 
-const CURRENCIES = ["EUR", "GBP", "USD", "ISK"];
-
 export default function Home() {
   const [authContext, setAuthCTX] = useState({});
   const [profileId, setProfileId] = useState("");
@@ -63,6 +62,8 @@ export default function Home() {
   const [accessToken, setAccessToken] = useState("");
   const [refreshToken, setRefreshToken] = useState("");
   const [transactions, setTransactions] = useState([]);
+
+  const [iban, setIban] = useState("");
 
   const [currency, setCurrency] = useState("EUR");
   const [recipient, setRecipient] = useState("");
@@ -80,78 +81,20 @@ export default function Home() {
 
   const codeParam = searchParams.get("code");
 
-  const { isOpen, onOpen, onClose } = useDisclosure();
-
-  const getAccessToken = async (code) => {
-    // After user authentication, Monerium redirects back to your specified URI with a code.
-    // Capture this code from the URL and proceed with the authentication.
-
-    // Extract the 'code' URL parameter.
-    const authCode = new URLSearchParams(window.location.search).get("code");
-
-    // Retrieve the stored code verifier.
-    const retrievedCodeVerifier = window.localStorage.getItem("myCodeVerifier");
-
-    // Finalize the authentication process.
-    await client.auth({
-      client_id: "f40ac19e-7a76-11ee-8b41-d2500a0c99b2", // replace with your client ID
-      code: authCode,
-      code_verifier: retrievedCodeVerifier,
-      redirect_url: "http://localhost:3000/", // ensure this matches the redirect_uri used initially
-    });
-
-    // Confirm the user is authenticated and retrieve the authentication data.
-    const authCtx = await client.getAuthContext();
-    setAuthCTX(authCtx);
-
-    const { id, accounts } = await client.getProfile(authCtx.profiles[0].id);
-
-    console.log(id, accounts);
-
-    let filteredAccounts = {};
-
-    for (const account of accounts) {
-      const { address } = account;
-
-      if (!filteredAccounts[address]) {
-        filteredAccounts[address] = [];
-      }
-
-      filteredAccounts[address].push(account);
-    }
-
-    setProfileId(id);
-    setAccounts(filteredAccounts);
-    setRecipient(
-      Object.keys(filteredAccounts)[Object.keys(filteredAccounts).length - 1]
+  const getAccessTokenWrapper = async (code) => {
+    return getAccessTokenExtended(
+      client,
+      code,
+      setAuthCTX,
+      setProfileId,
+      setAccounts,
+      setRecipient,
+      router,
+      setTransactions,
+      setAccessToken,
+      setRefreshToken,
+      getOrders
     );
-
-    console.log(
-      filteredAccounts[
-        Object.keys(filteredAccounts)[Object.keys(filteredAccounts).length - 1]
-      ]
-    );
-    console.log(filteredAccounts);
-
-    // Your access and refresh tokens are now available.
-    const { access_token, refresh_token } = client.bearerProfile;
-
-    localStorage.setItem("profileId", id);
-    localStorage.setItem("accessToken", access_token);
-    localStorage.setItem("refreshToken", refresh_token);
-
-    setAccessToken(access_token);
-    setRefreshToken(refresh_token);
-
-    console.log(access_token, refresh_token);
-
-    console.log(await getOrders());
-
-    setTransactions(await getOrders());
-
-    console.log(authCtx.profiles[0].id);
-
-    router.replace("/", undefined, { shallow: true });
   };
 
   const generateNewWalletAndSignMessage = async () => {
@@ -166,8 +109,6 @@ export default function Home() {
       message: "I hereby declare that I am the address owner.",
     });
 
-    console.log(signature);
-
     return { address: account.address, signature: signature };
   };
 
@@ -177,7 +118,7 @@ export default function Home() {
     // Generate the URL where users will be redirected to authenticate.
     let authFlowUrl = client.getAuthFlowURI({
       client_id: "f40ac19e-7a76-11ee-8b41-d2500a0c99b2", // replace with your auth flow client ID
-      redirect_uri: "http://localhost:3000/", // specify your redirect URI
+      redirect_uri: window.location.origin + window.location.pathname, // specify your redirect URI
       // Optional parameters for automatic wallet selection (if applicable)
       network: "goerli", // specify the network
       chain: "ethereum", // specify the chain
@@ -198,11 +139,13 @@ export default function Home() {
   };
 
   useEffect(() => {
+    localStorage.getItem("iban") && setIban(localStorage.getItem("iban"));
+
     const code = new URLSearchParams(window.location.search).get("code");
     const localAccessToken = localStorage.getItem("accessToken");
     const localRefreshToken = localStorage.getItem("refreshToken");
     const localProfileId = localStorage.getItem("profileId");
-    if (code != null && !accessToken) getAccessToken(code);
+    if (code != null && !accessToken) getAccessTokenWrapper(code);
     else if (code == null && localAccessToken && localRefreshToken) {
       (async () => {
         setAccessToken(localAccessToken);
@@ -251,6 +194,8 @@ export default function Home() {
             ]
           ]
         );
+
+        setAccounts(filteredAccounts);
         setTransactions(await getOrders());
       })();
     }
@@ -273,9 +218,10 @@ export default function Home() {
   };
 
   const getData = () => {
-    console.log("hello");
-    console.log(checkoutUrl);
-    const base64Data = checkoutUrl.replace("http://localhost:3000/pay/", "");
+    const base64Data = checkoutUrl.replace(
+      window.location.origin + "/pay/",
+      ""
+    );
     const data = decode(base64Data);
     const parsed = JSON.parse(data);
     console.log(parsed);
@@ -289,28 +235,32 @@ export default function Home() {
 
     console.log(signature);
 
-    const order = await client.placeOrder({
-      kind: "redeem",
-      amount: data.amount,
-      signature,
-      address: data.receiver,
-      counterpart: {
-        identifier: {
-          standard: "iban",
-          iban: data.iban,
+    await client
+      .placeOrder({
+        kind: "redeem",
+        amount: data.amount,
+        signature,
+        address: data.receiver,
+        counterpart: {
+          identifier: {
+            standard: "iban",
+            iban,
+          },
+          details: {
+            firstName: "Janice",
+            lastName: "Joplin",
+            country: data.iban.substring(0, 2),
+          },
         },
-        details: {
-          firstName: "Janice",
-          lastName: "Joplin",
-        },
-      },
-      message,
-      memo: "Powered by Monerium",
-      chain: "ethereum",
-      network: "goerli",
-    });
-
-    console.log(order);
+        message,
+        memo: "Powered by Monerium",
+        chain: "ethereum",
+        network: "goerli",
+      })
+      .then(async (data) => {
+        console.log(data);
+        setTransactions(await getOrders());
+      });
   };
 
   useEffect(() => {
@@ -346,10 +296,14 @@ export default function Home() {
         ],
         eventName: "Transfer",
         onLogs: (logs) => {
-          const data = getData();
-          console.log(data);
-          placeOrder();
-          if (logs[logs.length - 1].args.to == data.receiver) {
+          console.log(formatUnits(logs[logs.length - 1].args.value, 18));
+          const { receiver } = getData();
+          if (
+            logs[logs.length - 1].args.to == receiver &&
+            formatUnits(logs[logs.length - 1].args.value, 18) == amount
+          ) {
+            placeOrder();
+            unwatch();
           }
         },
       });
@@ -379,21 +333,13 @@ export default function Home() {
     }
   }, [message]);
 
-  useEffect(() => {
-    console.log(checkoutUrl);
-    if (checkoutUrl) {
-      const data = getData();
-
-      setMessage(placeOrderMessage(data.amount, data.iban));
-    }
-  }, [checkoutUrl]);
-
   const sendMessage = () => {
     const ws = new WebSocket("wss://chat.kesarx.repl.co/" + profileId);
 
-    const data = "http://localhost:3000/pay/" + getPaymentURL();
+    const data = window.location.origin + "/pay/" + getPaymentURL();
 
     setCheckoutUrl(data);
+    setMessage(placeOrderMessage(amount, iban));
 
     ws.onopen = () => {
       ws.send(data);
@@ -428,8 +374,18 @@ export default function Home() {
             spacing={10}
             py={5}
           >
-            <Receive />
-            <Transactions transactions={transactions} />
+            <Receive
+              recipient={recipient}
+              setCurrency={setCurrency}
+              setAmount={setAmount}
+              currency={currency}
+              amount={amount}
+              sendMessage={sendMessage}
+              setIban={setIban}
+              iban={iban}
+              checkoutUrl={checkoutUrl}
+            />
+            <Transactions transactions={transactions} iban={iban} />
           </VStack>
         </VStack>
       ) : (

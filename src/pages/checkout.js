@@ -38,13 +38,19 @@ import {
 } from "@chakra-ui/react";
 import { decode, encode } from "base-64";
 import { useRouter } from "next/router";
-import { ChevronDownIcon } from "@chakra-ui/icons";
+import { CheckIcon, ChevronDownIcon } from "@chakra-ui/icons";
 import QRCode from "react-qr-code";
-import { createPublicClient, http } from "viem";
+import { createPublicClient, formatUnits, http } from "viem";
 import { goerli } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
+import { getAccessToken } from "@/utils/getAccessToken";
 
 const client = new MoneriumClient("sandbox");
+
+const viemClient = createPublicClient({
+  chain: goerli,
+  transport: http(),
+});
 
 export default function Home() {
   const searchParams = useSearchParams();
@@ -55,31 +61,15 @@ export default function Home() {
 
   const [checkoutUrl, setCheckoutUrl] = useState();
 
-  const getAccessToken = async (code) => {
-    const authCode = new URLSearchParams(window.location.search).get("code");
+  const [success, setSuccess] = useState(false);
 
-    // Retrieve the stored code verifier.
-    const retrievedCodeVerifier = window.localStorage.getItem("myCodeVerifier");
-
-    // Finalize the authentication process.
-    await client.auth({
-      client_id: "f40ac19e-7a76-11ee-8b41-d2500a0c99b2", // replace with your client ID
-      code: authCode,
-      code_verifier: retrievedCodeVerifier,
-      redirect_uri: "http://localhost:3000/checkout", // ensure this matches the redirect_uri used initially
-    });
-
-    // Confirm the user is authenticated and retrieve the authentication data.
-    const authCtx = await client.getAuthContext();
-
-    localStorage.setItem("profileId", authCtx.profiles[0].id);
-  };
+  const [parsed, setParsed] = useState({});
 
   const redirectLogin = () => {
     // Generate the URL where users will be redirected to authenticate.
     let authFlowUrl = client.getAuthFlowURI({
       client_id: "f40ac19e-7a76-11ee-8b41-d2500a0c99b2", // replace with your auth flow client ID
-      redirect_uri: "http://localhost:3000/checkout", // specify your redirect URI
+      redirect_uri: window.location.origin + window.location.pathname, // specify your redirect URI
       // Optional parameters for automatic wallet selection (if applicable)
       network: "goerli", // specify the network
       chain: "ethereum", // specify the chain
@@ -98,7 +88,12 @@ export default function Home() {
     setProfileId(localProfileId);
 
     const code = new URLSearchParams(window.location.search).get("code");
-    if (code != null && !localProfileId) getAccessToken(code);
+    if (code != null && !localProfileId)
+      getAccessToken(
+        client,
+        code,
+        window.location.origin + window.location.pathname
+      );
 
     if (localProfileId) {
       const ws = new WebSocket("wss://chat.kesarx.repl.co/" + localProfileId);
@@ -108,12 +103,74 @@ export default function Home() {
           const data = JSON.parse(message.data);
 
           setCheckoutUrl(data.message);
+
+          const id = data.message.replace(window.location.origin + "/pay/", "");
+
+          const parsed = JSON.parse(decode(id)) || {};
+
+          setParsed(parsed);
+
+          console.log(data.message);
+
+          const unwatch = viemClient.watchContractEvent({
+            address: "0x83B844180f66Bbc3BE2E97C6179035AF91c4Cce8",
+            abi: [
+              {
+                anonymous: false,
+                inputs: [
+                  {
+                    indexed: true,
+                    internalType: "address",
+                    name: "from",
+                    type: "address",
+                  },
+                  {
+                    indexed: true,
+                    internalType: "address",
+                    name: "to",
+                    type: "address",
+                  },
+                  {
+                    indexed: false,
+                    internalType: "uint256",
+                    name: "value",
+                    type: "uint256",
+                  },
+                ],
+                name: "Transfer",
+                type: "event",
+              },
+            ],
+            eventName: "Transfer",
+            onLogs: (logs) => {
+              console.log("lol");
+              console.log(formatUnits(logs[logs.length - 1].args.value, 18));
+              console.log(logs);
+              console.log(parsed);
+              if (
+                logs[logs.length - 1].args.to == parsed?.receiver &&
+                formatUnits(logs[logs.length - 1].args.value, 18) ==
+                  parsed?.amount
+              ) {
+                setSuccess(true);
+
+                unwatch();
+
+                setTimeout(() => {
+                  setSuccess(false);
+                  setCheckoutUrl(null);
+                }, 5000);
+              }
+            },
+          });
         }
       };
     }
 
     // unwatchContract();
   }, []);
+
+  console.log(success);
 
   return (
     <Flex
@@ -132,7 +189,7 @@ export default function Home() {
           justifyContent={"center"}
           alignItems={"center"}
         >
-          {checkoutUrl ? (
+          {success ? (
             <Flex
               alignItems={"center"}
               justifyContent={"space-between"}
@@ -141,16 +198,37 @@ export default function Home() {
               my={10}
               p={10}
               rounded={"2xl"}
-              // boxShadow={"2xl"}
-              //   bgColor={"#fffefe"}
             >
-              <Heading size={"md"} fontWeight={"md"}>
-                Scan To Pay
+              <CheckIcon color={"green.500"} boxSize={32} />
+              <Heading>Thank you!</Heading>
+            </Flex>
+          ) : checkoutUrl ? (
+            <Flex
+              alignItems={"center"}
+              justifyContent={"space-between"}
+              flexDirection={"column"}
+              gap={10}
+              my={10}
+              p={10}
+            >
+              <Heading
+                fontSize={"6xl"}
+                alignSelf={"center"}
+                borderBottomWidth={2}
+                borderBottomColor={"blackAlpha.400"}
+              >
+                {parsed?.amount} {parsed?.currency?.toUpperCase()}
               </Heading>
+              <VStack>
+                <Text fontWeight={"bold"}>{parsed?.merchant}</Text>
+                <Text fontSize={"sm"} fontWeight={"bold"}>
+                  {parsed?.date && new Date(parsed?.date).toLocaleString()}
+                </Text>
+              </VStack>
               <QRCode size={256} value={checkoutUrl} />
             </Flex>
           ) : (
-            <Text>Waiting for checkout...</Text>
+            <Heading>Welcome!</Heading>
           )}
         </VStack>
       ) : (

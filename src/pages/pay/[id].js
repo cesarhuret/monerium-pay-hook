@@ -15,21 +15,30 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { useWeb3Modal } from "@web3modal/wagmi/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAccount, useContractWrite } from "wagmi";
 import { RiAccountCircleFill } from "react-icons/ri";
 import { useRouter } from "next/router";
 import { decode as base64_decode } from "base-64";
-import { parseEther } from "viem";
+import { parseEther, parseUnits } from "viem";
+
+const addresses = {
+  EUR: "0x83B844180f66Bbc3BE2E97C6179035AF91c4Cce8",
+};
 
 export default function Pay() {
   const { open } = useWeb3Modal();
   const { address, isConnecting, isConnected, isDisconnected } = useAccount();
   const router = useRouter();
+
   const { id } = router.query;
 
-  const usdc = useContractWrite({
-    address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+  const data = (id && JSON.parse(base64_decode(id))) || {};
+
+  console.log(data);
+
+  const token = useContractWrite({
+    address: addresses[data?.currency],
     abi: [
       {
         inputs: [
@@ -45,8 +54,6 @@ export default function Pay() {
     functionName: "transfer",
   });
 
-  const object = JSON.parse(base64_decode(id));
-
   console.log({ address, isConnecting, isDisconnected });
 
   useEffect(() => {
@@ -61,7 +68,7 @@ export default function Pay() {
     <VStack justifyContent={"center"} h={"100vh"}>
       <VStack justify={"space-between"} w={"full"} h={"90vh"} px={5}>
         <Image alt="logo" src={"/LOGO.svg"} />
-        <Spacer flex={1} />
+        <Spacer flex={2} />
         <VStack
           w={"90%"}
           justifyContent={"center"}
@@ -70,37 +77,34 @@ export default function Pay() {
           borderColor={"blackAlpha.500"}
           spacing={"5"}
         >
-          <Heading fontSize={"2xl"} alignSelf={"start"}>
-            {object.merchant} Order
+          <Heading
+            fontSize={"6xl"}
+            alignSelf={"center"}
+            borderBottomWidth={2}
+            borderBottomColor={"blackAlpha.400"}
+          >
+            {data?.amount} {data?.currency?.toUpperCase()}
           </Heading>
-          <Divider />
-          {object.items.map((value, index) => (
-            <HStack w={"full"} justify={"space-between"} key={index}>
-              <Text>
-                <b>{value.name}</b>
-              </Text>
-              <Text>
-                {value.price} {value.currency}
-              </Text>
-              <Text>{value.quantity}</Text>
-            </HStack>
-          ))}
-          <Divider />
-          <HStack w={"full"} justify={"space-between"}>
-            <Text>
-              <b>Total</b>
+          <VStack>
+            <Text fontWeight={"bold"}>{data?.merchant}</Text>
+            <Text fontSize={"sm"} fontWeight={"bold"}>
+              {new Date(data?.date).toLocaleString()}
             </Text>
-            <Text>{object.amount}$</Text>
-          </HStack>
+          </VStack>
         </VStack>
-        <Spacer flex={2} />
+        <Spacer flex={3} />
         <HStack w={"90%"} justifyContent={"center"}>
           <Button
             maxW={"600px"}
             colorScheme={"green"}
             flex={1}
+            isDisabled={!address || !isConnected || !data?.currency}
             onClick={() =>
-              usdc.write({ args: [object.receiver, object.amount], value: parseEther("0"), from: address})
+              token.write({
+                args: [data?.receiver, parseUnits(data?.amount, 18)],
+                value: parseEther("0"),
+                from: address,
+              })
             }
           >
             Pay

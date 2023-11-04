@@ -1,7 +1,4 @@
 import Transactions from "./transactions";
-import Receive from "./recieve";
+import Receive from "./receive";
 
-export {
-  Transactions,
-  Receive
-}
+export { Transactions, Receive };
