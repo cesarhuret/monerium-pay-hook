@@ -46,15 +46,6 @@ import { privateKeyToAccount } from "viem/accounts";
 
 const client = new MoneriumClient("sandbox");
 
-const viemClient = createPublicClient({
-  chain: goerli,
-  transport: http(),
-});
-
-const inter = Inter({ subsets: ["latin"] });
-
-const CURRENCIES = ["EUR", "GBP", "USD", "ISK"];
-
 export default function Home() {
   const searchParams = useSearchParams();
 
@@ -63,24 +54,6 @@ export default function Home() {
   const [profileId, setProfileId] = useState();
 
   const [checkoutUrl, setCheckoutUrl] = useState();
-
-  const [message, setMessage] = useState();
-
-  const [signature, setSignature] = useState();
-
-  const signMessage = async (msg) => {
-    const privateKey = localStorage.getItem("privateKey");
-
-    const account = privateKeyToAccount(privateKey);
-
-    const signature = await account.signMessage({
-      message: msg,
-    });
-
-    console.log(signature);
-
-    return { address: account.address, signature: signature };
-  };
 
   const getAccessToken = async (code) => {
     const authCode = new URLSearchParams(window.location.search).get("code");

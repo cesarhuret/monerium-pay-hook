@@ -43,6 +43,7 @@ import QRCode from "react-qr-code";
 import { createPublicClient, http } from "viem";
 import { goerli } from "viem/chains";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
+import { Transactions, Receive } from "@/components";
 
 const client = new MoneriumClient("sandbox");
 
@@ -255,82 +256,6 @@ export default function Home() {
     }
   }, []);
 
-  const Receive = () => (
-    <Stack w={{ base: "95%", md: "400px" }}>
-      <Flex
-        alignItems={"center"}
-        justifyContent={"space-between"}
-        flexDirection={"column"}
-        minH={"lg"}
-        gap={10}
-        my={10}
-        p={10}
-        rounded={"2xl"}
-        boxShadow={"2xl"}
-        bgColor={"#fffefe"}
-      >
-        <Heading>Receive</Heading>
-        <VStack
-          w={"90%"}
-          alignItems={"flex-start"}
-          justifyContent={"start"}
-          spacing={5}
-        >
-          <HStack w={"full"}>
-            <Text>To: </Text>
-            <Text>
-              {recipient.substring(0, 6) + "..." + recipient.substring(38, 42)}{" "}
-            </Text>
-          </HStack>
-
-          <Menu>
-            <HStack w={"full"}>
-              <Text>Receive: </Text>
-              <MenuButton
-                w={"full"}
-                as={Button}
-                rightIcon={<ChevronDownIcon />}
-              >
-                {currency}
-              </MenuButton>
-            </HStack>
-            <MenuList>
-              {CURRENCIES.map((data, index) => (
-                <MenuItem
-                  key={index}
-                  value={data}
-                  onClick={(e) => setCurrency(e.target.value)}
-                >
-                  {data}
-                </MenuItem>
-              ))}
-            </MenuList>
-          </Menu>
-          <NumberInput
-            w={"full"}
-            onChange={(value) => setAmount(value)}
-            min={0}
-            value={parseInt(amount)}
-          >
-            <NumberInputField />
-            <NumberInputStepper>
-              <NumberIncrementStepper />
-              <NumberDecrementStepper />
-            </NumberInputStepper>
-          </NumberInput>
-        </VStack>
-        <Button
-          w={"full"}
-          colorScheme="green"
-          isDisabled={!recipient || !amount}
-          onClick={sendMessage}
-        >
-          Receive {amount} {currency}
-        </Button>
-      </Flex>
-    </Stack>
-  );
-
   const getPaymentURL = () => {
     const object = {
       receiver: recipient,
@@ -462,38 +387,6 @@ export default function Home() {
       setMessage(placeOrderMessage(data.amount, data.iban));
     }
   }, [checkoutUrl]);
-
-  const Transactions = ({ transactions }) => (
-    <VStack justifyContent={"start"} alignItems={"start"}>
-      <Heading>Transaction History</Heading>
-      {transactions.map((tx, index) => (
-        <Box
-          key={index}
-          alignItems={"center"}
-          justifyContent={"space-between"}
-          flexDirection={"column"}
-          my={2}
-          p={6}
-          rounded={"lg"}
-          boxShadow={"lg"}
-          borderWidth={1}
-          bgColor={"#fffefe"}
-          w={{ base: "95%", md: "400px" }}
-        >
-          <HStack>
-            <Text>
-              {tx.kind == "issue" ? "+" : "-"} {tx.amount}{" "}
-              {tx.currency.toUpperCase()}
-            </Text>
-            <Spacer flex={1} />
-            <Text fontSize={"xs"} fontWeight={"bold"}>
-              {tx.meta.state.toUpperCase()}
-            </Text>
-          </HStack>
-        </Box>
-      ))}
-    </VStack>
-  );
 
   const sendMessage = () => {
     const ws = new WebSocket("wss://chat.kesarx.repl.co/" + profileId);
