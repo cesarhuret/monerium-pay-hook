@@ -65,6 +65,8 @@ export default function Home() {
 
   const [iban, setIban] = useState("");
 
+  console.log(iban);
+
   const [currency, setCurrency] = useState("EUR");
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState(0);
@@ -208,8 +210,7 @@ export default function Home() {
       currency: currency,
       date: new Date().toISOString(),
       merchant: authContext?.name,
-      iban: accounts[recipient]?.filter((account) => account.iban && account)[0]
-        .iban,
+      iban: iban,
     };
 
     const encoded = encode(JSON.stringify(object));
