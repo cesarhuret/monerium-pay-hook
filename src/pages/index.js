@@ -371,7 +371,7 @@ export default function Home() {
           <HStack w={"full"} p={6} h={"4vh"} alignItems={"center"}>
             <Spacer flex={1} />
             <Text>{authContext?.name}</Text>
-            <Text>{authContext?.profiles[0]?.id}</Text>
+            <Text>{authContext?.defaultProfile}</Text>
           </HStack>
           <VStack
             w={"100%"}
