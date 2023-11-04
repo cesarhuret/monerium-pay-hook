@@ -336,6 +336,8 @@ export default function Home() {
   const sendMessage = () => {
     const ws = new WebSocket("wss://chat.kesarx.repl.co/" + profileId);
 
+    console.log(profileId);
+
     const data = window.location.origin + "/pay/" + getPaymentURL();
 
     setCheckoutUrl(data);
@@ -345,6 +347,8 @@ export default function Home() {
       ws.send(data);
     };
   };
+
+  console.log(authContext);
 
   return (
     <Flex
@@ -366,6 +370,7 @@ export default function Home() {
           <HStack w={"full"} p={6} h={"4vh"} alignItems={"center"}>
             <Spacer flex={1} />
             <Text>{authContext?.name}</Text>
+            <Text>{authContext?.userId}</Text>
           </HStack>
           <VStack
             w={"100%"}

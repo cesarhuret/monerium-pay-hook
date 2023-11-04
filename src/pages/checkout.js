@@ -35,6 +35,8 @@ import {
   VStack,
   Stack,
   useDisclosure,
+  Input,
+  IconButton,
 } from "@chakra-ui/react";
 import { decode, encode } from "base-64";
 import { useRouter } from "next/router";
@@ -58,29 +60,13 @@ export default function Home() {
   const codeParam = searchParams.get("code");
 
   const [profileId, setProfileId] = useState();
+  const [temp, setTemp] = useState();
 
   const [checkoutUrl, setCheckoutUrl] = useState();
 
   const [success, setSuccess] = useState(false);
 
   const [parsed, setParsed] = useState({});
-
-  const redirectLogin = () => {
-    // Generate the URL where users will be redirected to authenticate.
-    let authFlowUrl = client.getAuthFlowURI({
-      client_id: "f40ac19e-7a76-11ee-8b41-d2500a0c99b2", // replace with your auth flow client ID
-      redirect_uri: window.location.origin + window.location.pathname, // specify your redirect URI
-      // Optional parameters for automatic wallet selection (if applicable)
-      network: "goerli", // specify the network
-      chain: "ethereum", // specify the chain
-    });
-
-    // Store the code verifier securely between requests.
-    window.localStorage.setItem("myCodeVerifier", client.codeVerifier);
-
-    // Redirect the user to the Monerium authentication flow.
-    window.location.replace(authFlowUrl);
-  };
 
   useEffect(() => {
     const localProfileId = localStorage.getItem("profileId");
@@ -96,12 +82,16 @@ export default function Home() {
       );
 
     if (localProfileId) {
+      console.log(localProfileId);
+
       const ws = new WebSocket("wss://chat.kesarx.repl.co/" + localProfileId);
 
       ws.onmessage = (message) => {
+        console.log(message);
         if (message.data.startsWith("{\n\t")) {
           const data = JSON.parse(message.data);
 
+          console.log(data.message);
           setCheckoutUrl(data.message);
 
           const id = data.message.replace(window.location.origin + "/pay/", "");
@@ -109,8 +99,6 @@ export default function Home() {
           const parsed = JSON.parse(decode(id)) || {};
 
           setParsed(parsed);
-
-          console.log(data.message);
 
           const unwatch = viemClient.watchContractEvent({
             address: "0x83B844180f66Bbc3BE2E97C6179035AF91c4Cce8",
@@ -170,6 +158,7 @@ export default function Home() {
     // unwatchContract();
   }, []);
 
+  console.log(success);
   console.log(success);
 
   return (
@@ -232,9 +221,20 @@ export default function Home() {
           )}
         </VStack>
       ) : (
-        <>
-          <Button onClick={redirectLogin}>Login with Monerium</Button>
-        </>
+        <HStack>
+          <Input
+            placeholder="Profile ID"
+            onChange={(e) => setTemp(e.target.value)}
+          />
+          <IconButton
+            onClick={() => {
+              localStorage.setItem("profileId", temp);
+              setProfileId(temp);
+            }}
+            icon={<CheckIcon />}
+            aria-label="Submit"
+          />
+        </HStack>
       )}
     </Flex>
   );
