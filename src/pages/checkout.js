@@ -42,6 +42,7 @@ import { ChevronDownIcon } from "@chakra-ui/icons";
 import QRCode from "react-qr-code";
 import { createPublicClient, http } from "viem";
 import { goerli } from "viem/chains";
+import { privateKeyToAccount } from "viem/accounts";
 
 const client = new MoneriumClient("sandbox");
 
@@ -68,7 +69,7 @@ export default function Home() {
   const [signature, setSignature] = useState();
 
   const signMessage = async (msg) => {
-    localStorage.getItem("privateKey");
+    const privateKey = localStorage.getItem("privateKey");
 
     const account = privateKeyToAccount(privateKey);
 
@@ -92,7 +93,7 @@ export default function Home() {
       client_id: "f40ac19e-7a76-11ee-8b41-d2500a0c99b2", // replace with your client ID
       code: authCode,
       code_verifier: retrievedCodeVerifier,
-      redirect_url: "http://localhost:3000/checkout", // ensure this matches the redirect_uri used initially
+      redirect_uri: "http://localhost:3000/checkout", // ensure this matches the redirect_uri used initially
     });
 
     // Confirm the user is authenticated and retrieve the authentication data.
@@ -118,95 +119,6 @@ export default function Home() {
     window.location.replace(authFlowUrl);
   };
 
-  const getData = () => {
-    console.log(checkoutUrl.replace("https://localhost:3000/pay/", ""));
-
-    const data = decode(checkoutUrl.replace("https://localhost:3000/pay/", ""));
-
-    console.log(data);
-    return JSON.parse(data);
-  };
-
-  const placeOrder = async () => {
-    const data = getData();
-    await client.placeOrder({
-      amount: data.amount,
-      signature,
-      address: data.receiver,
-      counterpart: {
-        identifier: {
-          standard: "iban",
-          iban: data.iban,
-        },
-        details: {
-          firstName: "Janice",
-          lastName: "Joplin",
-        },
-      },
-      message,
-      chain: "ethereum",
-      network: "goerli",
-    });
-  };
-
-  const watchContract = () => {
-    viemClient.watchContractEvent({
-      address: "0x83B844180f66Bbc3BE2E97C6179035AF91c4Cce8",
-      abi: [
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: "address",
-              name: "from",
-              type: "address",
-            },
-            {
-              indexed: true,
-              internalType: "address",
-              name: "to",
-              type: "address",
-            },
-            {
-              indexed: false,
-              internalType: "uint256",
-              name: "amount",
-              type: "uint256",
-            },
-            {
-              indexed: false,
-              internalType: "bytes",
-              name: "data",
-              type: "bytes",
-            },
-          ],
-          name: "Transfer",
-          type: "event",
-        },
-      ],
-      eventName: "Transfer",
-      onLogs: (logs) => {
-        console.log(logs);
-      }
-    });
-  };
-
-  useEffect(() => {
-    if (message) {
-      setSignature(signMessage(message));
-    }
-  }, [message]);
-
-  useEffect(() => {
-    console.log(checkoutUrl);
-    if (checkoutUrl) {
-      const data = getData();
-
-      setMessage(data.amount, data.iban);
-    }
-  }, [checkoutUrl]);
-
   useEffect(() => {
     const localProfileId = localStorage.getItem("profileId");
 
@@ -227,7 +139,7 @@ export default function Home() {
       };
     }
 
-    watchContract();
+    // unwatchContract();
   }, []);
 
   return (

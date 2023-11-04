@@ -1,5 +1,5 @@
 import { Inter } from "next/font/google";
-import { MoneriumClient } from "@monerium/sdk";
+import { MoneriumClient, placeOrderMessage } from "@monerium/sdk";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -36,13 +36,20 @@ import {
   Stack,
   useDisclosure,
 } from "@chakra-ui/react";
-import { encode } from "base-64";
+import { decode, encode } from "base-64";
 import { useRouter } from "next/router";
 import { ChevronDownIcon } from "@chakra-ui/icons";
 import QRCode from "react-qr-code";
+import { createPublicClient, http } from "viem";
+import { goerli } from "viem/chains";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
 const client = new MoneriumClient("sandbox");
+
+const viemClient = createPublicClient({
+  chain: goerli,
+  transport: http(),
+});
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -59,6 +66,12 @@ export default function Home() {
   const [currency, setCurrency] = useState("EUR");
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState(0);
+
+  const [checkoutUrl, setCheckoutUrl] = useState();
+
+  const [message, setMessage] = useState();
+
+  const [signature, setSignature] = useState();
 
   const router = useRouter();
 
@@ -212,12 +225,6 @@ export default function Home() {
         const authCtx = await client.getAuthContext();
         setAuthCTX(authCtx);
 
-        console.log(
-          "%c authCtx",
-          "color:white; padding: 30px; background-color: darkgreen",
-          authCtx
-        );
-
         const { id, accounts } = await client.getProfile(
           authCtx?.defaultProfile
         );
@@ -325,19 +332,136 @@ export default function Home() {
   );
 
   const getPaymentURL = () => {
-
     const object = {
       receiver: recipient,
       amount: amount,
       currency: currency,
       date: new Date().toISOString(),
       merchant: authContext?.name,
-      iban: 'IS140159260076545510730339',
+      iban: accounts[recipient]?.filter((account) => account.iban && account)[0]
+        .iban,
     };
-      
+
     const encoded = encode(JSON.stringify(object));
+
     return encoded;
   };
+
+  const getData = () => {
+    console.log("hello");
+    console.log(checkoutUrl);
+    const base64Data = checkoutUrl.replace("http://localhost:3000/pay/", "");
+    const data = decode(base64Data);
+    const parsed = JSON.parse(data);
+    console.log(parsed);
+    return parsed;
+  };
+
+  const placeOrder = async () => {
+    const data = getData();
+
+    console.log(data);
+
+    console.log(signature);
+
+    const order = await client.placeOrder({
+      kind: "redeem",
+      amount: data.amount,
+      signature,
+      address: data.receiver,
+      counterpart: {
+        identifier: {
+          standard: "iban",
+          iban: data.iban,
+        },
+        details: {
+          firstName: "Janice",
+          lastName: "Joplin",
+        },
+      },
+      message,
+      memo: "Powered by Monerium",
+      chain: "ethereum",
+      network: "goerli",
+    });
+
+    console.log(order);
+  };
+
+  useEffect(() => {
+    if (signature) {
+      const unwatch = viemClient.watchContractEvent({
+        address: "0x83B844180f66Bbc3BE2E97C6179035AF91c4Cce8",
+        abi: [
+          {
+            anonymous: false,
+            inputs: [
+              {
+                indexed: true,
+                internalType: "address",
+                name: "from",
+                type: "address",
+              },
+              {
+                indexed: true,
+                internalType: "address",
+                name: "to",
+                type: "address",
+              },
+              {
+                indexed: false,
+                internalType: "uint256",
+                name: "value",
+                type: "uint256",
+              },
+            ],
+            name: "Transfer",
+            type: "event",
+          },
+        ],
+        eventName: "Transfer",
+        onLogs: (logs) => {
+          const data = getData();
+          console.log(data);
+          placeOrder();
+          if (logs[logs.length - 1].args.to == data.receiver) {
+          }
+        },
+      });
+    }
+  }, [signature]);
+
+  const signMessage = async (msg) => {
+    const privateKey = localStorage.getItem("privateKey");
+
+    const account = privateKeyToAccount(privateKey);
+
+    const signature = await account.signMessage({
+      message: msg,
+    });
+
+    console.log(signature);
+
+    return { address: account.address, signature: signature };
+  };
+
+  useEffect(() => {
+    if (message) {
+      (async () => {
+        const sig = await signMessage(message);
+        setSignature(sig.signature);
+      })();
+    }
+  }, [message]);
+
+  useEffect(() => {
+    console.log(checkoutUrl);
+    if (checkoutUrl) {
+      const data = getData();
+
+      setMessage(placeOrderMessage(data.amount, data.iban));
+    }
+  }, [checkoutUrl]);
 
   const Transactions = ({ transactions }) => (
     <VStack justifyContent={"start"} alignItems={"start"}>
@@ -374,8 +498,12 @@ export default function Home() {
   const sendMessage = () => {
     const ws = new WebSocket("wss://chat.kesarx.repl.co/" + profileId);
 
+    const data = "http://localhost:3000/pay/" + getPaymentURL();
+
+    setCheckoutUrl(data);
+
     ws.onopen = () => {
-      ws.send("http://localhost:3000/pay/" + getPaymentURL());
+      ws.send(data);
     };
   };
 
@@ -387,30 +515,6 @@ export default function Home() {
       alignItems={"center"}
       overflowY={"scroll"}
     >
-      <Modal isOpen={isOpen} onClose={onClose} isCentered>
-        <ModalOverlay />
-        <ModalContent h={"lg"}>
-          <ModalBody p={10}>
-            <VStack
-              w={"full"}
-              h={"full"}
-              alignItems={"center"}
-              justifyContent={"space-around"}
-            >
-              {/* <Heading>Receive</Heading> */}
-              <QRCode
-                size={180}
-                value={"http://localhost:3000/pay/" + getPaymentURL()}
-              />
-              {/* <VStack spacing={3}>
-                <Text>Waiting For Payment</Text>
-                <Spinner />
-              </VStack> */}
-            </VStack>
-          </ModalBody>
-        </ModalContent>
-      </Modal>
-
       {codeParam ? (
         <Spinner />
       ) : accessToken ? (
