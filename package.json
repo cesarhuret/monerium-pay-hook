@@ -9,12 +9,14 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@chakra-ui/icons": "^2.1.1",
     "@chakra-ui/next-js": "^2.1.5",
     "@chakra-ui/react": "^2.8.1",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@monerium/sdk": "^2.6.5",
     "@web3modal/wagmi": "^3.2.0",
+    "cookies": "^0.8.0",
     "framer-motion": "^10.16.4",
     "next": "14.0.1",
     "react": "^18",

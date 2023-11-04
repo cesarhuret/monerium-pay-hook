@@ -1,16 +1,113 @@
-import Head from "next/head";
-import Image from "next/image";
 import { Inter } from "next/font/google";
-import styles from "@/styles/Home.module.css";
 import { MoneriumClient } from "@monerium/sdk";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import {
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  MenuItemOption,
+  MenuGroup,
+  MenuOptionGroup,
+  MenuDivider,
+  Box,
+  Button,
+  Flex,
+  HStack,
+  Heading,
+  SimpleGrid,
+  Spacer,
+  Spinner,
+  Text,
+  VStack,
+} from "@chakra-ui/react";
+import { useRouter } from "next/router";
+import { ChevronDownIcon } from "@chakra-ui/icons";
 
 const client = new MoneriumClient("sandbox");
 
 const inter = Inter({ subsets: ["latin"] });
 
 export default function Home() {
-  useEffect(() => {
+  const [authContext, setAuthCTX] = useState({});
+  const [profileId, setProfileId] = useState("");
+  const [accounts, setAccounts] = useState({});
+  const [accessToken, setAccessToken] = useState("");
+  const [refreshToken, setRefreshToken] = useState("");
+  const [transactions, setTransactions] = useState([]);
+
+  const router = useRouter();
+
+  const searchParams = useSearchParams();
+
+  const codeParam = searchParams.get("code");
+
+  const getAccessToken = async (code) => {
+    // After user authentication, Monerium redirects back to your specified URI with a code.
+    // Capture this code from the URL and proceed with the authentication.
+
+    // Extract the 'code' URL parameter.
+    const authCode = new URLSearchParams(window.location.search).get("code");
+
+    // Retrieve the stored code verifier.
+    const retrievedCodeVerifier = window.localStorage.getItem("myCodeVerifier");
+
+    // Finalize the authentication process.
+    await client.auth({
+      client_id: "f40ac19e-7a76-11ee-8b41-d2500a0c99b2", // replace with your client ID
+      code: authCode,
+      code_verifier: retrievedCodeVerifier,
+      redirect_url: "http://your-webpage.com/monerium-integration", // ensure this matches the redirect_uri used initially
+    });
+
+    // Confirm the user is authenticated and retrieve the authentication data.
+    const authCtx = await client.getAuthContext();
+    setAuthCTX(authCtx);
+
+    const { id, accounts } = await client.getProfile(authCtx.profiles[0].id);
+
+    console.log(id, accounts);
+
+    let filteredAccounts = {};
+
+    for (const account of accounts) {
+      const { address } = account;
+
+      if (!filteredAccounts[address]) {
+        filteredAccounts[address] = [];
+      }
+
+      filteredAccounts[address].push(account);
+    }
+
+    setProfileId(id);
+    setAccounts(filteredAccounts);
+
+    console.log(filteredAccounts);
+
+    // Your access and refresh tokens are now available.
+    const { access_token, refresh_token } = client.bearerProfile;
+
+    localStorage.setItem("profileId", id);
+    localStorage.setItem("accessToken", access_token);
+    localStorage.setItem("refreshToken", refresh_token);
+
+    setAccessToken(access_token);
+    setRefreshToken(refresh_token);
+
+    console.log(access_token, refresh_token);
+
+    console.log(await getOrders());
+
+    setTransactions(await getOrders());
+
+    console.log(authCtx.profiles[0].id);
+
+    router.replace("/", undefined, { shallow: true });
+  };
+
+  const redirectLogin = () => {
     // Generate the URL where users will be redirected to authenticate.
     let authFlowUrl = client.getAuthFlowURI({
       client_id: "f40ac19e-7a76-11ee-8b41-d2500a0c99b2", // replace with your auth flow client ID
@@ -18,9 +115,6 @@ export default function Home() {
       // Optional parameters for automatic wallet selection (if applicable)
       network: "goerli", // specify the network
       chain: "ethereum", // specify the chain
-      address: "0xValidAddress72413Fa92980B889A1eCE84dD", // user wallet address
-      signature:
-        "0xValidSignature0df2b6c9e0fc067ab29bdbf322bec30aad7c46dcd97f62498a91ef7795957397e0f49426e000b0f500c347219ddd98dc5080982563055e918031c", // user wallet signature
     });
 
     // Store the code verifier securely between requests.
@@ -28,111 +122,157 @@ export default function Home() {
 
     // Redirect the user to the Monerium authentication flow.
     window.location.replace(authFlowUrl);
+  };
+
+  const getOrders = async () => {
+    const orders = await client.getOrders(profileId);
+    return orders;
+  };
+
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("code");
+    const localAccessToken = localStorage.getItem("accessToken");
+    const localRefreshToken = localStorage.getItem("refreshToken");
+    const localProfileId = localStorage.getItem("profileId");
+    if (code != null && !accessToken) getAccessToken(code);
+    else if (code == null && localAccessToken && localRefreshToken) {
+      (async () => {
+        setAccessToken(localAccessToken);
+        setRefreshToken(localRefreshToken);
+
+        console.log(localRefreshToken);
+
+        const lol = await client
+          .auth({
+            client_id: "f40ac19e-7a76-11ee-8b41-d2500a0c99b2",
+            refresh_token: localRefreshToken,
+          })
+          .catch(() => {
+            localStorage.removeItem("accessToken");
+            localStorage.removeItem("refreshToken");
+            localStorage.removeItem("profileId");
+          });
+
+        console.log(lol);
+
+        const authCtx = await client.getAuthContext();
+        setAuthCTX(authCtx);
+
+        console.log(
+          "%c authCtx",
+          "color:white; padding: 30px; background-color: darkgreen",
+          authCtx
+        );
+
+        const { id, accounts } = await client.getProfile(
+          authCtx?.defaultProfile
+        );
+        console.log(id, accounts);
+        let filteredAccounts = {};
+        for (const account of accounts) {
+          const { address } = account;
+          if (!filteredAccounts[address]) {
+            filteredAccounts[address] = [];
+          }
+          filteredAccounts[address].push(account);
+        }
+        setProfileId(id);
+        setAccounts(filteredAccounts);
+        setTransactions(await getOrders());
+      })();
+    }
   }, []);
 
+  const Accounts = ({ accounts }) => (
+    <VStack
+      w={"full"}
+      spacing={5}
+      justifyContent={"center"}
+      alignItems={"center"}
+      p={4}
+    >
+      <Heading>Receive</Heading>
+      {Object.keys(accounts).map((account, index) => {
+        console.log(accounts);
+        return (
+          <HStack justify={"space-between"} key={account} p={6}>
+            {/* <Heading fontFamily={inter} pb={6} size={"md"}>
+              {account.substring(0, 6)}...{account.substring(38, 42)}
+            </Heading> */}
+            <Menu>
+              <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
+                Recipient
+              </MenuButton>
+              <MenuList>
+                {Object.values(accounts[account]).map((data, index) => (
+                  <MenuItem>{data.currency}</MenuItem>
+                ))}
+              </MenuList>
+            </Menu>
+            <Menu>
+              <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
+                Currency
+              </MenuButton>
+              <MenuList>
+                {Object.values(accounts[account]).map((data, index) => (
+                  <MenuItem>{data.currency}</MenuItem>
+                ))}
+              </MenuList>
+            </Menu>
+          </HStack>
+        );
+      })}
+    </VStack>
+  );
+
+  const Transactions = ({ transactions }) => (
+    <VStack justifyContent={"start"} alignItems={"start"}>
+      <Heading>Transaction History</Heading>
+      {transactions.map((tx, index) => (
+        <Text key={index}>
+          {tx.address}, {tx.amount}
+        </Text>
+      ))}
+    </VStack>
+  );
+
   return (
-    <>
-      <Head>
-        <title>Create Next App</title>
-        <meta name="description" content="Generated by create next app" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-      <main className={`${styles.main} ${inter.className}`}>
-        <div className={styles.description}>
-          <p>
-            Get started by editing&nbsp;
-            <code className={styles.code}>src/pages/index.js</code>
-          </p>
-          <div>
-            <a
-              href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              By{" "}
-              <Image
-                src="/vercel.svg"
-                alt="Vercel Logo"
-                className={styles.vercelLogo}
-                width={100}
-                height={24}
-                priority
-              />
-            </a>
-          </div>
-        </div>
-
-        <div className={styles.center}>
-          <Image
-            className={styles.logo}
-            src="/next.svg"
-            alt="Next.js Logo"
-            width={180}
-            height={37}
-            priority
-          />
-        </div>
-
-        <div className={styles.grid}>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
+    <Flex
+      w={"full"}
+      h={"100vh"}
+      justifyContent={"center"}
+      alignItems={"center"}
+      overflowY={"scroll"}
+    >
+      {codeParam ? (
+        <Spinner />
+      ) : accessToken ? (
+        <VStack
+          w={"full"}
+          h={"100vh"}
+          justifyContent={"center"}
+          alignItems={"center"}
+        >
+          <HStack w={"full"} p={6} h={"4vh"} alignItems={"center"}>
+            <Spacer flex={1} />
+            <Text>{authContext?.name}</Text>
+          </HStack>
+          <VStack
+            w={"100%"}
+            h={"90vh"}
+            alignItems={"center"}
+            spacing={10}
+            py={5}
           >
-            <h2>
-              Docs <span>-&gt;</span>
-            </h2>
-            <p>
-              Find in-depth information about Next.js features and&nbsp;API.
-            </p>
-          </a>
-
-          <a
-            href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2>
-              Learn <span>-&gt;</span>
-            </h2>
-            <p>
-              Learn about Next.js in an interactive course with&nbsp;quizzes!
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2>
-              Templates <span>-&gt;</span>
-            </h2>
-            <p>
-              Discover and deploy boilerplate example Next.js&nbsp;projects.
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2>
-              Deploy <span>-&gt;</span>
-            </h2>
-            <p>
-              Instantly deploy your Next.js site to a shareable URL
-              with&nbsp;Vercel.
-            </p>
-          </a>
-        </div>
-      </main>
-    </>
+            <Accounts accounts={accounts} />
+            <Transactions transactions={transactions} />
+          </VStack>
+        </VStack>
+      ) : (
+        <>
+          <Button onClick={redirectLogin}>Login with Monerium</Button>
+        </>
+      )}
+    </Flex>
   );
 }
