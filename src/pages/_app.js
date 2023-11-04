@@ -3,8 +3,8 @@ import theme from "@/styles/theme";
 import { ChakraProvider } from "@chakra-ui/react";
 import { createWeb3Modal, defaultWagmiConfig } from "@web3modal/wagmi/react";
 
-import { WagmiConfig } from "wagmi";
-import { mainnet } from "wagmi/chains";
+import { WagmiConfig } from 'wagmi'
+import { mainnet, goerli } from 'wagmi/chains'
 
 const projectId = process.env.WALLETCONNECT_PROJECT_ID;
 
@@ -14,8 +14,8 @@ const metadata = {
   url: "localhost:3000",
 };
 
-const chains = [mainnet];
-const wagmiConfig = defaultWagmiConfig({ chains, projectId, metadata });
+const chains = [goerli]
+const wagmiConfig = defaultWagmiConfig({ chains, projectId, metadata})
 
 createWeb3Modal({ wagmiConfig, projectId, chains });
 
