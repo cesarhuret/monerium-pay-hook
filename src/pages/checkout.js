@@ -67,7 +67,7 @@ export default function Home() {
       client_id: "f40ac19e-7a76-11ee-8b41-d2500a0c99b2", // replace with your client ID
       code: authCode,
       code_verifier: retrievedCodeVerifier,
-      redirect_url: "http://your-webpage.com/monerium-integration", // ensure this matches the redirect_uri used initially
+      redirect_url: "http://localhost:3000/checkout", // ensure this matches the redirect_uri used initially
     });
 
     // Confirm the user is authenticated and retrieve the authentication data.
@@ -94,6 +94,8 @@ export default function Home() {
   };
 
   const getData = () => {
+    console.log(checkoutUrl.replace("https://localhost:3000/pay/", ""));
+
     const data = decode(checkoutUrl.replace("https://localhost:3000/pay/", ""));
 
     console.log(data);

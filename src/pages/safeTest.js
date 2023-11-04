@@ -2,6 +2,8 @@ import { ethers } from "ethers";
 import Safe, { EthersAdapter } from "@safe-global/protocol-kit";
 import { SafeFactory } from "@safe-global/protocol-kit";
 import { useEffect, useState } from "react";
+import { useContractWrite } from "wagmi";
+import { parseEther } from "viem";
 
 export default function SafeTest() {
   const [safeFactory, setSafeFactory] = useState();
@@ -42,13 +44,62 @@ export default function SafeTest() {
     );
 
     setPredictedSafeAddress(newPredictedSafeAddress);
-
   };
 
-  console.log(safeFactory)
+  console.log(safeFactory);
+
+  const signMessage = () => {
+    const message = "I hereby declare that I am the address owner.";
+
+    const signature = owner1Signer.signMessage(message);
+
+    console.log(signature);
+  };
+
+  const signMessageLib = useContractWrite({
+    address: "0xd53cd0aB83D845Ac265BE939c57F53AD838012c9",
+    abi: [
+      {
+        inputs: [{ internalType: "bytes", name: "_data", type: "bytes" }],
+        name: "signMessage",
+        outputs: [],
+        stateMutability: "nonpayable",
+        type: "function",
+      },
+    ],
+    functionName: "signMessage",
+  });
+
+  const addSigToSafeLib = async () => {
+    const sig =
+      "0x60c3fc2448cfc41b2bd8b15bc838de61e82a8d8de37e2083fc7b4412120869ba0b1fd5e5ac3c6b75206e2bbb8eb08e61952f52562e7ac569f737d0075c3f5c951b";
+
+    const ownerAddress = await owner1Signer.getAddress();
+
+    console.log(ownerAddress);
+
+    console.log(owner1Signer.getChainId());
+
+    const signMessageLibContract = new ethers.Contract(
+      "0xd53cd0aB83D845Ac265BE939c57F53AD838012c9",
+      [
+        {
+          inputs: [{ internalType: "bytes", name: "_data", type: "bytes" }],
+          name: "signMessage",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+      ],
+      owner1Signer
+    );
+
+    const signMessageLib = await signMessageLibContract.signMessage(sig);
+
+    console.log(signMessageLib);
+  };
 
   const connectSafe = async () => {
-
     const createSafeSDK = await Safe.create({
       ethAdapter: ethApdapterOwner1,
       safeAddress: predictedSafeAddress,
@@ -74,12 +125,14 @@ export default function SafeTest() {
   };
 
   useEffect(() => {
-    safeInit()
+    // safeInit();
+    // signMessage();
+    addSigToSafeLib();
   }, []);
 
   useEffect(() => {
     if (predictedSafeAddress) {
-      
+      // deploySafe();
     }
   }, [safeFactory, safeAccountConfig, predictedSafeAddress]);
 

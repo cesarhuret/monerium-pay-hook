@@ -40,6 +40,7 @@ import { encode } from "base-64";
 import { useRouter } from "next/router";
 import { ChevronDownIcon } from "@chakra-ui/icons";
 import QRCode from "react-qr-code";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
 const client = new MoneriumClient("sandbox");
 
@@ -82,7 +83,7 @@ export default function Home() {
       client_id: "f40ac19e-7a76-11ee-8b41-d2500a0c99b2", // replace with your client ID
       code: authCode,
       code_verifier: retrievedCodeVerifier,
-      redirect_url: "http://your-webpage.com/monerium-integration", // ensure this matches the redirect_uri used initially
+      redirect_url: "http://localhost:3000/", // ensure this matches the redirect_uri used initially
     });
 
     // Confirm the user is authenticated and retrieve the authentication data.
@@ -107,7 +108,15 @@ export default function Home() {
 
     setProfileId(id);
     setAccounts(filteredAccounts);
+    setRecipient(
+      Object.keys(filteredAccounts)[Object.keys(filteredAccounts).length - 1]
+    );
 
+    console.log(
+      filteredAccounts[
+        Object.keys(filteredAccounts)[Object.keys(filteredAccounts).length - 1]
+      ]
+    );
     console.log(filteredAccounts);
 
     // Your access and refresh tokens are now available.
@@ -131,7 +140,26 @@ export default function Home() {
     router.replace("/", undefined, { shallow: true });
   };
 
-  const redirectLogin = () => {
+  const generateNewWalletAndSignMessage = async () => {
+    var localPrivKey = localStorage.getItem("privateKey");
+    if (!localPrivKey) {
+      const localPrivKey = generatePrivateKey();
+      localStorage.setItem("privateKey", localPrivKey);
+    }
+    const account = privateKeyToAccount(localPrivKey);
+
+    const signature = await account.signMessage({
+      message: "I hereby declare that I am the address owner.",
+    });
+
+    console.log(signature);
+
+    return { address: account.address, signature: signature };
+  };
+
+  const redirectLogin = async () => {
+    const { address, signature } = await generateNewWalletAndSignMessage();
+
     // Generate the URL where users will be redirected to authenticate.
     let authFlowUrl = client.getAuthFlowURI({
       client_id: "f40ac19e-7a76-11ee-8b41-d2500a0c99b2", // replace with your auth flow client ID
@@ -139,6 +167,8 @@ export default function Home() {
       // Optional parameters for automatic wallet selection (if applicable)
       network: "goerli", // specify the network
       chain: "ethereum", // specify the chain
+      address,
+      signature,
     });
 
     // Store the code verifier securely between requests.
@@ -201,13 +231,24 @@ export default function Home() {
           filteredAccounts[address].push(account);
         }
         setProfileId(id);
-        setAccounts(filteredAccounts);
+        setRecipient(
+          Object.keys(filteredAccounts)[
+            Object.keys(filteredAccounts).length - 1
+          ]
+        );
+        console.log(
+          filteredAccounts[
+            Object.keys(filteredAccounts)[
+              Object.keys(filteredAccounts).length - 1
+            ]
+          ]
+        );
         setTransactions(await getOrders());
       })();
     }
   }, []);
 
-  const Receive = ({ accounts }) => (
+  const Receive = () => (
     <Stack w={{ base: "95%", md: "400px" }}>
       <Flex
         alignItems={"center"}
@@ -228,32 +269,13 @@ export default function Home() {
           justifyContent={"start"}
           spacing={5}
         >
-          <Menu>
-            <HStack w={"full"}>
-              <Text>To: </Text>
-              <MenuButton
-                w={"full"}
-                as={Button}
-                rightIcon={<ChevronDownIcon />}
-              >
-                {recipient &&
-                  recipient.substring(0, 6) +
-                    "..." +
-                    recipient.substring(38, 42)}
-              </MenuButton>
-            </HStack>
-            <MenuList>
-              {Object.keys(accounts).map((data, index) => (
-                <MenuItem
-                  value={data}
-                  onClick={(e) => setRecipient(e.target.value)}
-                  key={index}
-                >
-                  {data}
-                </MenuItem>
-              ))}
-            </MenuList>
-          </Menu>
+          <HStack w={"full"}>
+            <Text>To: </Text>
+            <Text>
+              {recipient.substring(0, 6) + "..." + recipient.substring(38, 42)}{" "}
+            </Text>
+          </HStack>
+
           <Menu>
             <HStack w={"full"}>
               <Text>Receive: </Text>
@@ -315,15 +337,34 @@ export default function Home() {
     return encoded;
   };
 
-  const waitForPayment = async () => {};
-
   const Transactions = ({ transactions }) => (
     <VStack justifyContent={"start"} alignItems={"start"}>
       <Heading>Transaction History</Heading>
       {transactions.map((tx, index) => (
-        <Text key={index}>
-          {tx.address}, {tx.amount}
-        </Text>
+        <Box
+          key={index}
+          alignItems={"center"}
+          justifyContent={"space-between"}
+          flexDirection={"column"}
+          my={2}
+          p={6}
+          rounded={"lg"}
+          boxShadow={"lg"}
+          borderWidth={1}
+          bgColor={"#fffefe"}
+          w={{ base: "95%", md: "400px" }}
+        >
+          <HStack>
+            <Text>
+              {tx.kind == "issue" ? "+" : "-"} {tx.amount}{" "}
+              {tx.currency.toUpperCase()}
+            </Text>
+            <Spacer flex={1} />
+            <Text fontSize={"xs"} fontWeight={"bold"}>
+              {tx.meta.state.toUpperCase()}
+            </Text>
+          </HStack>
+        </Box>
       ))}
     </VStack>
   );
@@ -388,7 +429,7 @@ export default function Home() {
             spacing={10}
             py={5}
           >
-            <Receive accounts={accounts} />
+            <Receive />
             <Transactions transactions={transactions} />
           </VStack>
         </VStack>
