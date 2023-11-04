@@ -17,10 +17,13 @@
     "@monerium/sdk": "^2.6.5",
     "@web3modal/wagmi": "^3.2.0",
     "cookies": "^0.8.0",
+    "base-64": "^1.0.0",
     "framer-motion": "^10.16.4",
     "next": "14.0.1",
     "react": "^18",
     "react-dom": "^18",
+    "react-icons": "^4.11.0",
+    "react-qr-code": "^2.0.12",
     "viem": "^1.18.4",
     "wagmi": "^1.4.5"
   },
