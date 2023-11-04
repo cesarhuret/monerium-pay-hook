@@ -1,5 +1,5 @@
 import { Inter } from "next/font/google";
-import { MoneriumClient } from "@monerium/sdk";
+import { MoneriumClient, placeOrderMessage } from "@monerium/sdk";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -40,8 +40,15 @@ import { decode, encode } from "base-64";
 import { useRouter } from "next/router";
 import { ChevronDownIcon } from "@chakra-ui/icons";
 import QRCode from "react-qr-code";
+import { createPublicClient, http } from "viem";
+import { goerli } from "viem/chains";
 
 const client = new MoneriumClient("sandbox");
+
+const viemClient = createPublicClient({
+  chain: goerli,
+  transport: http(),
+});
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -55,6 +62,24 @@ export default function Home() {
   const [profileId, setProfileId] = useState();
 
   const [checkoutUrl, setCheckoutUrl] = useState();
+
+  const [message, setMessage] = useState();
+
+  const [signature, setSignature] = useState();
+
+  const signMessage = async (msg) => {
+    localStorage.getItem("privateKey");
+
+    const account = privateKeyToAccount(privateKey);
+
+    const signature = await account.signMessage({
+      message: msg,
+    });
+
+    console.log(signature);
+
+    return { address: account.address, signature: signature };
+  };
 
   const getAccessToken = async (code) => {
     const authCode = new URLSearchParams(window.location.search).get("code");
@@ -99,11 +124,87 @@ export default function Home() {
     const data = decode(checkoutUrl.replace("https://localhost:3000/pay/", ""));
 
     console.log(data);
+    return JSON.parse(data);
+  };
+
+  const placeOrder = async () => {
+    const data = getData();
+    await client.placeOrder({
+      amount: data.amount,
+      signature,
+      address: data.receiver,
+      counterpart: {
+        identifier: {
+          standard: "iban",
+          iban: data.iban,
+        },
+        details: {
+          firstName: "Janice",
+          lastName: "Joplin",
+        },
+      },
+      message,
+      chain: "ethereum",
+      network: "goerli",
+    });
+  };
+
+  const watchContract = () => {
+    viemClient.watchContractEvent({
+      address: "0x83B844180f66Bbc3BE2E97C6179035AF91c4Cce8",
+      abi: [
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "address",
+              name: "from",
+              type: "address",
+            },
+            {
+              indexed: true,
+              internalType: "address",
+              name: "to",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "amount",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "bytes",
+              name: "data",
+              type: "bytes",
+            },
+          ],
+          name: "Transfer",
+          type: "event",
+        },
+      ],
+      eventName: "Transfer",
+      onLogs: (logs) => {
+        console.log(logs);
+      }
+    });
   };
 
   useEffect(() => {
+    if (message) {
+      setSignature(signMessage(message));
+    }
+  }, [message]);
+
+  useEffect(() => {
     console.log(checkoutUrl);
-    if (checkoutUrl) getData();
+    if (checkoutUrl) {
+      const data = getData();
+
+      setMessage(data.amount, data.iban);
+    }
   }, [checkoutUrl]);
 
   useEffect(() => {
@@ -125,6 +226,8 @@ export default function Home() {
         }
       };
     }
+
+    watchContract();
   }, []);
 
   return (

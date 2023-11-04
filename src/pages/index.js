@@ -325,14 +325,16 @@ export default function Home() {
   );
 
   const getPaymentURL = () => {
+
     const object = {
       receiver: recipient,
       amount: amount,
       currency: currency,
       date: new Date().toISOString(),
       merchant: authContext?.name,
+      iban: 'IS140159260076545510730339',
     };
-
+      
     const encoded = encode(JSON.stringify(object));
     return encoded;
   };
