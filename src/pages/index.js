@@ -35,6 +35,7 @@ import {
   VStack,
   Stack,
   useDisclosure,
+  Input
 } from "@chakra-ui/react";
 import { decode, encode } from "base-64";
 import { useRouter } from "next/router";
@@ -45,6 +46,7 @@ import { goerli } from "viem/chains";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { Transactions, Receive } from "@/components";
 import { getAccessToken, getAccessTokenExtended } from "@/utils/getAccessToken";
+import { useAccount } from "wagmi";
 
 const client = new MoneriumClient("sandbox");
 
@@ -124,8 +126,6 @@ export default function Home() {
       // Optional parameters for automatic wallet selection (if applicable)
       network: "goerli", // specify the network
       chain: "ethereum", // specify the chain
-      address,
-      signature,
     });
 
     // Store the code verifier securely between requests.
@@ -325,15 +325,6 @@ export default function Home() {
     return { address: account.address, signature: signature };
   };
 
-  useEffect(() => {
-    if (message) {
-      (async () => {
-        const sig = await signMessage(message);
-        setSignature(sig.signature);
-      })();
-    }
-  }, [message]);
-
   const sendMessage = () => {
     const ws = new WebSocket("wss://chat.kesarx.repl.co/" + profileId);
 
@@ -350,6 +341,8 @@ export default function Home() {
   };
 
   console.log(authContext);
+
+  console.log(recipient)
 
   return (
     <Flex
@@ -391,6 +384,8 @@ export default function Home() {
               iban={iban}
               checkoutUrl={checkoutUrl}
             />
+            <w3m-button/>
+            <Input maxW="400px" placeholder="Input signature" onChange={(e)=>{setSignature(e.target.value)}}/>
             <Transactions transactions={transactions} iban={iban} />
           </VStack>
         </VStack>
