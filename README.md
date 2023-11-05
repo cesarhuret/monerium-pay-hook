@@ -1,40 +1,62 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+<p align="center">
+<font  size="5"><b>
+Monerium Pay Hook
+</b>
+</font>
+</p>
 
-## Getting Started
+<h3>Description</h3>
+<p>
+    Cryptocurrencies were originally made as a fast, simple, transparent currency for the internet. Now, we dream of a future without bank accounts - yet a steep learning curve, and the risk of volatility and being hacked scares the majority of shops and retail. 
+</p>
+<p>
+    But what if we could <b>"de-risk"</b> all this? 
+    <br/>
+    What if shopkeepers could accept crypto without ever handling it - immediately receive fiat - and never worry about the complexities of crypto?
+</p>
 
-First, run the development server:
+<p>
+    Introducing our Monerium Pay Hook - which automatically converts received crypto tokens into fiat in the shopkeeper's bank account.
+</p>
+<br/>
+<p align="center">
+<font  size="5"><b>
+User sends crypto 🤝 Shop receives fiat.
+</b>
+</font>
+</p>
+<br/>
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+<b>How it works:</b>
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+When logging in, the shopkeeper has a transitionary wallet automatically created by the Hook UI. The wallet automatically sends out redeem orders (crypto to fiat) when receiving crypto.
 
-You can start editing the page by modifying `pages/index.js`. The page auto-updates as you edit the file.
+1. Customer pays with crypto
+2. Shopkeeper's transitionary wallet receives the crypto
+3. On receival, Monerium Pay Hook is triggered and places an order to redeem the crypto into fiat.
+4. The order will be processed and the fiat will be sent to the shopkeeper's real world bank account.
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.js`.
+![Alt text](<public/Frame 4 (2).png>)
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+The beauty of a transitionary wallet is that the wallet itself never has funds for a long time. This reduces exposure to protocol hacks, and other crypto anomalies. But if the wallet is hacked, the shopkeeper can literally just clear their browsing data to get a new transitionary wallet created for them.
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+<h3>Improvements</h3>
 
-## Learn More
+Rather than just having a website, it would be better to turn this into a full fledged physical terminal device - like a credit card terminal. However, doing this could also increase the barrier to adoption, since it needs to be purchased and could potentially be expensive. On the other hand, it could drastically increase security - as the transitionary wallet private key could be stored on a security chip in the device itself.
 
-To learn more about Next.js, take a look at the following resources:
+<h3>Requirements</h3>
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- A valid and verified Monerium account
+- Considering that Monerium is currently targetting businesses, Monerium Pay Hook would only facilitate the experience for them.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+<br/>
 
-## Deploy on Vercel
+<h3>Links</h3>
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- [Main Page](https://monerium-pay-hook.vercel.app/)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+- [Checkout](https://monerium-pay-hook.vercel.app/checkout)
+
+- [Google Slides](https://docs.google.com/presentation/d/1X5pVATOROzcdmvkb3WyjWFO7JTmOWFdZeNicO-f-VUA/edit?usp=sharing)
+
+- [Demo Video](https://www.youtube.com/watch?v=__VvdX6JypM)

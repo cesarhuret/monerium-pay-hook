@@ -251,8 +251,8 @@ export default function Home() {
             iban,
           },
           details: {
-            firstName: "Janice",
-            lastName: "Joplin",
+            firstName: "Cesar",
+            lastName: "Huret",
             country: data.iban.substring(0, 2),
           },
         },
