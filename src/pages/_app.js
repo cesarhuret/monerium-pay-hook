@@ -9,7 +9,7 @@ import { gnosis } from "wagmi/chains";
 const projectId = process.env.WALLETCONNECT_PROJECT_ID;
 
 const metadata = {
-  name: "Monerium Pay",
+  name: "Monerium Pay Hook",
   description: "Pay web2 merchants via web3",
   url: "localhost:3000",
 };
