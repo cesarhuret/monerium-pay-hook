@@ -58,6 +58,6 @@ Rather than just having a website, it would be better to turn this into a full f
 
 - [Google Slides](https://docs.google.com/presentation/d/1X5pVATOROzcdmvkb3WyjWFO7JTmOWFdZeNicO-f-VUA/edit?usp=sharing)
 
-- [Demo Video](https://www.youtube.com/watch?v=__VvdX6JypM)
+- [Demo Video](https://youtu.be/V3gjs3WIcHc)
 
 - [Neon EVM Most Transactions](https://docs.google.com/document/d/1jz_sfHtfhLQnYVfSNWgIUDnN5u5IzPfRFdfKBXtDcRI/edit)
