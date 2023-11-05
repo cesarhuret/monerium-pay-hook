@@ -16,29 +16,32 @@ import {
 } from "@chakra-ui/react";
 import { useWeb3Modal } from "@web3modal/wagmi/react";
 import { useEffect, useState } from "react";
-import { useAccount, useContractWrite } from "wagmi";
+import {
+  useAccount,
+  useContractWrite,
+  useNetwork,
+  useSwitchNetwork,
+} from "wagmi";
 import { RiAccountCircleFill } from "react-icons/ri";
 import { useRouter } from "next/router";
 import { decode as base64_decode } from "base-64";
 import { parseEther, parseUnits } from "viem";
-
-const addresses = {
-  EUR: "0x83B844180f66Bbc3BE2E97C6179035AF91c4Cce8",
-};
+import { TOKENS } from "@/utils/tokens";
 
 export default function Pay() {
   const { open } = useWeb3Modal();
   const { address, isConnecting, isConnected, isDisconnected } = useAccount();
+  const { chain } = useNetwork();
   const router = useRouter();
 
   const { id } = router.query;
 
   const data = (id && JSON.parse(base64_decode(id))) || {};
 
-  console.log(data);
+  console.log(chain);
 
   const token = useContractWrite({
-    address: addresses[data?.currency],
+    address: TOKENS[data?.currency],
     abi: [
       {
         inputs: [
@@ -63,6 +66,44 @@ export default function Pay() {
   const viewAccount = () => {
     isDisconnected ? open() : open({ view: "Account" });
   };
+
+  const bridge = useContractWrite({
+    address: "0xA4218e1F39DA4AaDaC971066458Db56e901bcbdE",
+    abi: [
+      {
+        outputs: [],
+        inputs: [
+          { name: "localToken", internalType: "address", type: "address" },
+          { name: "remoteChainId", internalType: "uint16", type: "uint16" },
+          { name: "amount", internalType: "uint256", type: "uint256" },
+          { name: "to", internalType: "address", type: "address" },
+          { name: "unwrapWeth", internalType: "bool", type: "bool" },
+          {
+            components: [
+              {
+                name: "refundAddress",
+                internalType: "address payable",
+                type: "address",
+              },
+              {
+                name: "zroPaymentAddress",
+                internalType: "address",
+                type: "address",
+              },
+            ],
+            name: "callParams",
+            internalType: "struct LzLib.CallParams",
+            type: "tuple",
+          },
+          { name: "adapterParams", internalType: "bytes", type: "bytes" },
+        ],
+        name: "bridge",
+        stateMutability: "payable",
+        type: "function",
+      },
+    ],
+    functionName: "bridge",
+  });
 
   return (
     <VStack justifyContent={"center"} h={"100vh"}>
@@ -93,6 +134,52 @@ export default function Pay() {
           </VStack>
         </VStack>
         <Spacer flex={3} />
+        {/* {chain?.id == 1116 && (
+          <HStack w={"90%"} justifyContent={"center"}>
+            <Button
+              maxW={"320px"}
+              colorScheme={"green"}
+              flex={1}
+              isDisabled={!address || !isConnected || !data?.currency}
+              onClick={() =>
+                bridge.write({
+                  args: [
+                    "0xa4151b2b3e269645181dccf2d426ce75fcbdeca9",
+                    137,
+                    parseUnits(11, 18),
+                    address,
+                    false,
+                    {
+                      refundAddress: address,
+                      zroPaymentAddress:
+                        "0x0000000000000000000000000000000000000000",
+                    },
+                    "0x",
+                  ],
+                  value: parseEther("0"),
+                  from: address,
+                })
+              }
+            >
+              Bridge To Polygon
+            </Button>
+            <Button
+              maxW={"320px"}
+              colorScheme={"green"}
+              flex={1}
+              isDisabled={!address || !isConnected || !data?.currency}
+              onClick={() =>
+                token.write({
+                  args: [data?.receiver, parseUnits(data?.amount, 18)],
+                  value: parseEther("0"),
+                  from: address,
+                })
+              }
+            >
+              Swap To EURe
+            </Button>
+          </HStack>
+        )} */}
         <HStack w={"90%"} justifyContent={"center"}>
           <Button
             maxW={"600px"}

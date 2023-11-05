@@ -41,15 +41,16 @@ import { useRouter } from "next/router";
 import { ChevronDownIcon } from "@chakra-ui/icons";
 import QRCode from "react-qr-code";
 import { createPublicClient, formatUnits, http, parseUnits } from "viem";
-import { goerli } from "viem/chains";
+import { gnosis } from "viem/chains";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { Transactions, Receive } from "@/components";
 import { getAccessToken, getAccessTokenExtended } from "@/utils/getAccessToken";
+import { TOKENS } from "@/utils/tokens";
 
-const client = new MoneriumClient("sandbox");
+const client = new MoneriumClient("production");
 
 const viemClient = createPublicClient({
-  chain: goerli,
+  chain: gnosis,
   transport: http(),
 });
 
@@ -107,6 +108,8 @@ export default function Home() {
     }
     const account = privateKeyToAccount(localPrivKey);
 
+    console.log(localPrivKey);
+
     const signature = await account.signMessage({
       message: "I hereby declare that I am the address owner.",
     });
@@ -119,11 +122,11 @@ export default function Home() {
 
     // Generate the URL where users will be redirected to authenticate.
     let authFlowUrl = client.getAuthFlowURI({
-      client_id: "f40ac19e-7a76-11ee-8b41-d2500a0c99b2", // replace with your auth flow client ID
+      client_id: process.env.NEXT_PUBLIC_CLIENT_AUTH_CODE, // replace with your auth flow client ID
       redirect_uri: window.location.origin + window.location.pathname, // specify your redirect URI
       // Optional parameters for automatic wallet selection (if applicable)
-      network: "goerli", // specify the network
-      chain: "ethereum", // specify the chain
+      network: "mainnet", // specify the network
+      chain: "gnosis", // specify the chain
       address,
       signature,
     });
@@ -157,7 +160,7 @@ export default function Home() {
 
         const lol = await client
           .auth({
-            client_id: "f40ac19e-7a76-11ee-8b41-d2500a0c99b2",
+            client_id: process.env.NEXT_PUBLIC_CLIENT_AUTH_CODE,
             refresh_token: localRefreshToken,
           })
           .catch(() => {
@@ -255,8 +258,8 @@ export default function Home() {
         },
         message,
         memo: "Powered by Monerium",
-        chain: "ethereum",
-        network: "goerli",
+        chain: "gnosis",
+        network: "mainnet",
       })
       .then(async (data) => {
         console.log(data);
@@ -267,7 +270,7 @@ export default function Home() {
   useEffect(() => {
     if (signature) {
       const unwatch = viemClient.watchContractEvent({
-        address: "0x83B844180f66Bbc3BE2E97C6179035AF91c4Cce8",
+        address: TOKENS[getData()?.currency],
         abi: [
           {
             anonymous: false,

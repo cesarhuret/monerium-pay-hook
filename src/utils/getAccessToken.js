@@ -61,7 +61,7 @@ export const getAccessToken = async (client, code, uri) => {
 
   // Finalize the authentication process.
   await client.auth({
-    client_id: "f40ac19e-7a76-11ee-8b41-d2500a0c99b2", // replace with your client ID
+    client_id: process.env.NEXT_PUBLIC_CLIENT_AUTH_CODE, // replace with your client ID
     code: authCode,
     code_verifier: retrievedCodeVerifier,
     redirect_uri: uri, // ensure this matches the redirect_uri used initially

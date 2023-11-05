@@ -43,14 +43,15 @@ import { useRouter } from "next/router";
 import { CheckIcon, ChevronDownIcon } from "@chakra-ui/icons";
 import QRCode from "react-qr-code";
 import { createPublicClient, formatUnits, http } from "viem";
-import { goerli } from "viem/chains";
+import { gnosis } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { getAccessToken } from "@/utils/getAccessToken";
+import { TOKENS } from "@/utils/tokens";
 
-const client = new MoneriumClient("sandbox");
+const client = new MoneriumClient("production");
 
 const viemClient = createPublicClient({
-  chain: goerli,
+  chain: gnosis,
   transport: http(),
 });
 
@@ -101,7 +102,7 @@ export default function Home() {
           setParsed(parsed);
 
           const unwatch = viemClient.watchContractEvent({
-            address: "0x83B844180f66Bbc3BE2E97C6179035AF91c4Cce8",
+            address: TOKENS[parsed?.currency],
             abi: [
               {
                 anonymous: false,
